@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "module": "commonjs",
+        "declaration": false,
+        "noImplicitAny": false,
+        "removeComments": true,
+        "noLib": false,
+        "sourceMap": true
+    },
+    "filesGlob": [
+        "src/*.ts",
+        "js/Babylon.js-master/babylon.2.1.d.ts",
+        "!node_modules/**/*.ts"
+    ],
+    "files": [
+        "src/factory.ts",
+        "src/main.ts",
+        "js/Babylon.js-master/babylon.2.1.d.ts"
+    ]
+}
