@@ -16,6 +16,7 @@
     "files": [
         "src/factory.ts",
         "src/main.ts",
+        "src/preloader.ts",
         "js/Babylon.js-master/babylon.2.1.d.ts"
     ]
 }
