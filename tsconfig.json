@@ -4,19 +4,22 @@
         "module": "commonjs",
         "declaration": false,
         "noImplicitAny": false,
-        "removeComments": true,
+        "removeComments": false,
         "noLib": false,
-        "sourceMap": true
+        "sourceMap": true,
+        "out": "app.js"
     },
     "filesGlob": [
         "src/*.ts",
-        "js/Babylon.js-master/babylon.2.1.d.ts",
+        "src/levels/*.ts",
+        "!js/Babylon.js-master/babylon.2.1.d.ts",
         "!node_modules/**/*.ts"
     ],
     "files": [
         "src/factory.ts",
         "src/main.ts",
         "src/preloader.ts",
-        "js/Babylon.js-master/babylon.2.1.d.ts"
+        "src/refs.ts",
+        "src/levels/level1.ts"
     ]
 }

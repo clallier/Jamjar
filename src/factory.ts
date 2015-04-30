@@ -1,3 +1,5 @@
+/// <reference path="refs.ts"/>
+
 class Factory {
 
   static createSkybox(scene: BABYLON.Scene) {
