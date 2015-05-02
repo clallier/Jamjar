@@ -1,3 +1,6 @@
+/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
+/// <reference path="app.ts"/>
+
 class FileDesc {
   key: string;
   path: string;

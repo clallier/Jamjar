@@ -16,10 +16,13 @@
         "!node_modules/**/*.ts"
     ],
     "files": [
+        "src/SKYScene.ts",
+        "src/app.ts",
+        "src/defines.ts",
         "src/factory.ts",
-        "src/main.ts",
         "src/preloader.ts",
         "src/refs.ts",
-        "src/levels/level1.ts"
+        "src/levels/level1.ts",
+        "src/levels/loadingScene.ts"
     ]
 }
