@@ -3,7 +3,7 @@
 
 class SKY {
 
-  version: string = "1.0.19";
+  version: string = "1.0.26";
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
 
@@ -53,21 +53,6 @@ class SKY {
     */
   }
 
-  /*
-  initLoadingScene() {
-    this.changeScene(this.loadingScene);
-  }
-
-  initLevel1() {
-
-    //document.getElementById("loadingScreen").style.transform = "translateX(-300%)";
-    //Factory.createJamJar(this.scene, light2);
-    //Factory.createBot(this.scene);
-    this.changeScene(this.level1);
-  }
-  */
-
-
   notifyProgress(value: number) {
     console.log("progress: " + value);
     var box = this.loadingScene.getMeshByName("box");
@@ -97,7 +82,7 @@ class SKY {
 }
 
 document.addEventListener("DOMContentLoaded", ev => {
-  //if(BABYLON.Engine.isSupported()) {
+  if(BABYLON.Engine.isSupported()) {
     var game = new SKY("renderCanvas");
-  //}
+  }
 });

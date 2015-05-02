@@ -23,7 +23,7 @@ var SKYScene = (function (_super) {
 var SKY = (function () {
     function SKY(canvasId) {
         var _this = this;
-        this.version = "1.0.19";
+        this.version = "1.0.26";
         console.log("version: " + this.version);
         this.canvas = document.getElementById("renderCanvas");
         this.engine = new BABYLON.Engine(this.canvas, false);
@@ -54,19 +54,6 @@ var SKY = (function () {
         }, false);
         */
     }
-    /*
-    initLoadingScene() {
-      this.changeScene(this.loadingScene);
-    }
-  
-    initLevel1() {
-  
-      //document.getElementById("loadingScreen").style.transform = "translateX(-300%)";
-      //Factory.createJamJar(this.scene, light2);
-      //Factory.createBot(this.scene);
-      this.changeScene(this.level1);
-    }
-    */
     SKY.prototype.notifyProgress = function (value) {
         console.log("progress: " + value);
         var box = this.loadingScene.getMeshByName("box");
@@ -91,9 +78,9 @@ var SKY = (function () {
     return SKY;
 })();
 document.addEventListener("DOMContentLoaded", function (ev) {
-    //if(BABYLON.Engine.isSupported()) {
-    var game = new SKY("renderCanvas");
-    //}
+    if (BABYLON.Engine.isSupported()) {
+        var game = new SKY("renderCanvas");
+    }
 });
 var Items = (function () {
     function Items() {
@@ -293,6 +280,16 @@ var Level1 = (function (_super) {
     }
     Level1.prototype.init = function (canvas, assets) {
         console.log("init Level1");
+        this.map = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 4, 0, 0, 0, 0, 0, 1],
+            [1, 2, 4, 0, 0, 3, 0, 0, 1],
+            [1, 0, 4, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+        this.assets = assets;
         console.log("lights");
         var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), this);
         light1.intensity = 0.8;
@@ -300,25 +297,51 @@ var Level1 = (function (_super) {
         light2.position = new BABYLON.Vector3(0, 20, 0);
         console.log("fog");
         this.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-        this.fogEnabled = true;
+        this.fogEnabled = false;
         this.fogDensity = 0.02;
-        console.log("ground");
-        var ground = assets[Items.Ground].mesh;
-        ground.position = new BABYLON.Vector3(0, 0, 0);
-        ground.receiveShadows = true;
+        var k = 3;
+        for (var j = 0; j < this.map.length; j++) {
+            for (var i = 0; i < this.map[j].length; i++) {
+                var position = new BABYLON.Vector3(i * k - 4 * k, 0, j * k);
+                switch (this.map[j][i]) {
+                    case 1:
+                        console.log("box");
+                        var box = BABYLON.Mesh.CreateBox("box", k, this);
+                        var boxMaterial = new BABYLON.StandardMaterial("boxMaterial", this);
+                        boxMaterial.diffuseColor = BABYLON.Color3.Yellow();
+                        boxMaterial.emissiveColor = BABYLON.Color3.Yellow();
+                        box.material = boxMaterial;
+                        position.y = k;
+                        box.position = position;
+                        break;
+                    case 2:
+                        this.cloneAndMoveTo(Items.SpaceCowboy, position);
+                        break;
+                    case 3:
+                        position.y = 4;
+                        this.cloneAndMoveTo(Items.HiBot, position);
+                        break;
+                    case 4:
+                        position.y = 2;
+                        this.cloneAndMoveTo(Items.CrateBox, position);
+                        break;
+                    default:
+                        this.cloneAndMoveTo(Items.Ground, position);
+                        break;
+                }
+            }
+        }
         console.log("camera");
-        var camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(0, 10, 0), this);
-        camera.target = ground;
-        /*
-            console.log("cloning SpaceCowboy");
-            var spaceCowboy = assets[Items.SpaceCowboy].mesh;
-        
-            console.log("cloning CrateBox");
-            var crateBox = assets[Items.CrateBox].mesh;
-        
-            console.log("cloning HiBot");
-            var HiBot = assets[Items.HiBot].mesh;
-        */
+        var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 4.0, 40.0, new BABYLON.Vector3(0, 0, 0), this);
+    };
+    Level1.prototype.cloneAndMoveTo = function (name, pos) {
+        console.log("cloning " + name);
+        var item = this.assets[name].mesh;
+        item.forEach(function (m) {
+            var mm = m.clone();
+            mm.position = pos;
+            mm.isVisible = true;
+        });
     };
     return Level1;
 })(SKYScene);
