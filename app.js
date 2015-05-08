@@ -23,7 +23,7 @@ var SKYScene = (function (_super) {
 var SKY = (function () {
     function SKY(canvasId) {
         var _this = this;
-        this.version = "1.0.26";
+        this.version = "1.0.29";
         console.log("version: " + this.version);
         this.canvas = document.getElementById("renderCanvas");
         this.engine = new BABYLON.Engine(this.canvas, false);
@@ -81,6 +81,8 @@ document.addEventListener("DOMContentLoaded", function (ev) {
     if (BABYLON.Engine.isSupported()) {
         var game = new SKY("renderCanvas");
     }
+    else
+        console.warn("Babylon not supported on this device/browser");
 });
 var Items = (function () {
     function Items() {
@@ -91,16 +93,6 @@ var Items = (function () {
     Items.HiBot = "HiBot";
     return Items;
 })();
-// http://joeriks.com/2013/03/30/simple-module-dependencies-in-typescript/
-// <reference path=
-//"..\js\Babylon.js-master\babylon.2.1.d.ts"/>
-//"defines"/>
-//"factory"/>
-//"preloader"/>
-//"SKYScene"/>
-//"./levels/loadingScene"/>
-//"./levels/level1"/>
-/// <reference path="refs.ts"/>
 var Factory = (function () {
     function Factory() {
     }
@@ -313,6 +305,7 @@ var Level1 = (function (_super) {
                         box.material = boxMaterial;
                         position.y = k;
                         box.position = position;
+                        box.scaling.y = j / 4 + .5;
                         break;
                     case 2:
                         this.cloneAndMoveTo(Items.SpaceCowboy, position);

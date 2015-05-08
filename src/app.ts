@@ -3,7 +3,7 @@
 
 class SKY {
 
-  version: string = "1.0.26";
+  version: string = "1.0.29";
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
 
@@ -43,7 +43,7 @@ class SKY {
     this.engine.runRenderLoop( () => {
       if(this.activeScene == null)
         console.log("runRenderLoop : activeScene is null")
-        this.activeScene.render();
+      this.activeScene.render();
     });
     /*
     window.addEventListener("resize", ev => {
@@ -84,5 +84,5 @@ class SKY {
 document.addEventListener("DOMContentLoaded", ev => {
   if(BABYLON.Engine.isSupported()) {
     var game = new SKY("renderCanvas");
-  }
+  } else console.warn("Babylon not supported on this device/browser");
 });

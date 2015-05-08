@@ -47,6 +47,7 @@ class Level1 extends SKYScene {
             box.material = boxMaterial;
             position.y = k;
             box.position = position;
+            box.scaling.y = j/4+.5;
           break;
 
           case 2:
