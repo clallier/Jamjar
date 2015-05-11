@@ -45,12 +45,12 @@ class SKY {
         console.log("runRenderLoop : activeScene is null")
       this.activeScene.render();
     });
-    /*
+
     window.addEventListener("resize", ev => {
       if(this.engine != null)
         this.engine.resize();
     }, false);
-    */
+
   }
 
   notifyProgress(value: number) {

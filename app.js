@@ -47,12 +47,10 @@ var SKY = (function () {
                 console.log("runRenderLoop : activeScene is null");
             _this.activeScene.render();
         });
-        /*
-        window.addEventListener("resize", ev => {
-          if(this.engine != null)
-            this.engine.resize();
+        window.addEventListener("resize", function (ev) {
+            if (_this.engine != null)
+                _this.engine.resize();
         }, false);
-        */
     }
     SKY.prototype.notifyProgress = function (value) {
         console.log("progress: " + value);
@@ -269,6 +267,7 @@ var Level1 = (function (_super) {
     __extends(Level1, _super);
     function Level1() {
         _super.apply(this, arguments);
+        this.k = 3;
     }
     Level1.prototype.init = function (canvas, assets) {
         console.log("init Level1");
@@ -291,41 +290,69 @@ var Level1 = (function (_super) {
         this.fogMode = BABYLON.Scene.FOGMODE_EXP2;
         this.fogEnabled = false;
         this.fogDensity = 0.02;
-        var k = 3;
+        var k = this.k;
         for (var j = 0; j < this.map.length; j++) {
             for (var i = 0; i < this.map[j].length; i++) {
-                var position = new BABYLON.Vector3(i * k - 4 * k, 0, j * k);
+                var position = new BABYLON.Vector3(i * k - 4 * k, 0, j * k - 3 * k);
                 switch (this.map[j][i]) {
                     case 1:
                         console.log("box");
-                        var box = BABYLON.Mesh.CreateBox("box", k, this);
+                        var box = BABYLON.Mesh.CreateBox("box", k * .8, this);
                         var boxMaterial = new BABYLON.StandardMaterial("boxMaterial", this);
                         boxMaterial.diffuseColor = BABYLON.Color3.Yellow();
                         boxMaterial.emissiveColor = BABYLON.Color3.Yellow();
                         box.material = boxMaterial;
-                        position.y = k;
+                        position.y = k / 2;
                         box.position = position;
-                        box.scaling.y = j / 4 + .5;
                         break;
                     case 2:
                         this.cloneAndMoveTo(Items.SpaceCowboy, position);
                         break;
                     case 3:
-                        position.y = 4;
                         this.cloneAndMoveTo(Items.HiBot, position);
                         break;
                     case 4:
-                        position.y = 2;
                         this.cloneAndMoveTo(Items.CrateBox, position);
                         break;
                     default:
-                        this.cloneAndMoveTo(Items.Ground, position);
+                        // nothing for the moment
+                        //this.cloneAndMoveTo(Items.Ground, position);
                         break;
                 }
             }
         }
+        // for each add a square to represent the ground
+        this.createGround();
         console.log("camera");
-        var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 4.0, 40.0, new BABYLON.Vector3(0, 0, 0), this);
+        var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
+        this.activeCamera = camera;
+        //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
+    };
+    Level1.prototype.createGround = function () {
+        console.log("tiledGround");
+        var k = this.k;
+        var subdivision = { w: 9, h: 7 };
+        var precision = { w: 1, h: 1 };
+        // map : 9*7 tiles
+        this.ground = BABYLON.Mesh.CreateTiledGround("ground", -4.5 * k, -3.5 * k, 4.5 * k, 3.5 * k, subdivision, precision, this);
+        var whiteMaterial = new BABYLON.StandardMaterial("White", this);
+        whiteMaterial.diffuseColor = new BABYLON.Color3(.97, .89, .42); //light yellow // TODO defines these colors in defines
+        var blackMaterial = new BABYLON.StandardMaterial("Black", this);
+        blackMaterial.diffuseColor = new BABYLON.Color3(.92, .54, .19); // orange
+        var multimat = new BABYLON.MultiMaterial("multi", this);
+        multimat.subMaterials.push(whiteMaterial);
+        multimat.subMaterials.push(blackMaterial);
+        this.ground.material = multimat;
+        var verticesCount = this.ground.getTotalVertices();
+        var tileIndicesLength = this.ground.getIndices().length / (subdivision.w * subdivision.h);
+        this.ground.subMeshes = [];
+        var base = 0;
+        for (var row = 0; row < subdivision.h; row++) {
+            for (var col = 0; col < subdivision.w; col++) {
+                this.ground.subMeshes.push(new BABYLON.SubMesh(row % 2 ^ col % 2, 0, verticesCount, base, tileIndicesLength, this.ground));
+                base += tileIndicesLength;
+            }
+        }
     };
     Level1.prototype.cloneAndMoveTo = function (name, pos) {
         console.log("cloning " + name);

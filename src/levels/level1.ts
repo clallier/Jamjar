@@ -5,6 +5,8 @@ class Level1 extends SKYScene {
 
   assets: Object[];
   map;
+  ground: BABYLON.Mesh;
+  k = 3;
 
   public init(canvas:HTMLCanvasElement, assets: Object[]) {
     console.log("init Level1");
@@ -32,22 +34,21 @@ class Level1 extends SKYScene {
     this.fogEnabled = false;
     this.fogDensity = 0.02;
 
-    let k = 3;
+    let k = this.k;
     for (let j = 0; j < this.map.length; j++) {
       for (let i = 0; i < this.map[j].length; i++) {
-        let position = new BABYLON.Vector3(i*k-4*k, 0, j*k);
+        let position = new BABYLON.Vector3(i*k-4*k, 0, j*k-3*k);
 
         switch(this.map[j][i]) {
           case 1:
             console.log("box");
-            var box = BABYLON.Mesh.CreateBox("box", k, this);
+            var box = BABYLON.Mesh.CreateBox("box", k*.8, this);
             var boxMaterial = new BABYLON.StandardMaterial("boxMaterial", this);
             boxMaterial.diffuseColor = BABYLON.Color3.Yellow();
             boxMaterial.emissiveColor = BABYLON.Color3.Yellow();
             box.material = boxMaterial;
-            position.y = k;
+            position.y = k/2;
             box.position = position;
-            box.scaling.y = j/4+.5;
           break;
 
           case 2:
@@ -55,24 +56,59 @@ class Level1 extends SKYScene {
           break;
 
           case 3:
-            position.y = 4;
             this.cloneAndMoveTo(Items.HiBot, position);
           break;
 
           case 4:
-            position.y = 2;
             this.cloneAndMoveTo(Items.CrateBox, position);
           break;
 
           default ://0
-            this.cloneAndMoveTo(Items.Ground, position);
+            // nothing for the moment
+            //this.cloneAndMoveTo(Items.Ground, position);
           break;
         }
       }
     }
 
+    // for each add a square to represent the ground
+    this.createGround();
+
     console.log("camera");
-    var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 4.0, 40.0, new BABYLON.Vector3(0, 0, 0), this);
+    var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
+    this.activeCamera = camera;
+    //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
+  }ù
+
+  createGround() {
+    console.log("tiledGround");
+    let k = this.k;
+    var subdivision = {w:9, h:7};
+    var precision = {w:1, h:1};
+    // map : 9*7 tiles
+    this.ground = BABYLON.Mesh.CreateTiledGround("ground", -4.5*k, -3.5*k, 4.5*k, 3.5*k, subdivision, precision, this);
+    var whiteMaterial = new BABYLON.StandardMaterial("White", this);
+    whiteMaterial.diffuseColor = new BABYLON.Color3(.97, .89, .42); //light yellow // TODO defines these colors in defines
+
+    var blackMaterial = new BABYLON.StandardMaterial("Black", this);
+    blackMaterial.diffuseColor = new BABYLON.Color3(.92, .54, .19);// orange
+
+    var multimat = new BABYLON.MultiMaterial("multi", this);
+    multimat.subMaterials.push(whiteMaterial);
+    multimat.subMaterials.push(blackMaterial);
+
+    this.ground.material = multimat;
+    var verticesCount = this.ground.getTotalVertices();
+    var tileIndicesLength = this.ground.getIndices().length / (subdivision.w * subdivision.h);
+
+    this.ground.subMeshes = [];
+    var base = 0;
+    for (var row = 0; row < subdivision.h; row++) {
+        for (var col = 0; col < subdivision.w; col++) {
+          this.ground.subMeshes.push(new BABYLON.SubMesh(row%2 ^ col%2, 0, verticesCount, base, tileIndicesLength, this.ground));
+             base += tileIndicesLength;
+         }
+    }
   }
 
   cloneAndMoveTo(name:string, pos: BABYLON.Vector3) {
