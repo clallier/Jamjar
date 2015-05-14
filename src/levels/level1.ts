@@ -3,10 +3,11 @@
 
 class Level1 extends SKYScene {
 
-  assets: Object[];
   map;
   ground: BABYLON.Mesh;
   k = 3;
+  player:Player = null;
+  cursor:Cursor = null;
 
   public init(canvas:HTMLCanvasElement, assets: Object[]) {
     console.log("init Level1");
@@ -52,7 +53,7 @@ class Level1 extends SKYScene {
           break;
 
           case 2:
-            this.cloneAndMoveTo(Items.SpaceCowboy, position);
+            this.player = new Player(this, position);
           break;
 
           case 3:
@@ -78,7 +79,12 @@ class Level1 extends SKYScene {
     var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
     this.activeCamera = camera;
     //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
-  }ù
+
+    // OK end of map init => now we select the player
+
+    this.beforeRender = () => this.update();
+    this.skeletonsEnabled = true;
+  }
 
   createGround() {
     console.log("tiledGround");
@@ -119,5 +125,11 @@ class Level1 extends SKYScene {
         mm.position = pos;
         mm.isVisible = true;
     });
+  }
+
+  update() {
+    var deltaTime:number = this.getEngine().getDeltaTime();
+    //console.log("lastDeltaTime : " + deltaTime);
+    this.player.update(deltaTime);
   }
 }

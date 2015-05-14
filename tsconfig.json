@@ -18,8 +18,10 @@
     "files": [
         "src/SKYScene.ts",
         "src/app.ts",
+        "src/cursor.ts",
         "src/defines.ts",
         "src/factory.ts",
+        "src/player.ts",
         "src/preloader.ts",
         "src/levels/level1.ts",
         "src/levels/loadingScene.ts"

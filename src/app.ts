@@ -3,7 +3,7 @@
 
 class SKY {
 
-  version: string = "1.0.29";
+  version: string = "1.0.31";
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
 
@@ -45,6 +45,7 @@ class SKY {
         console.log("runRenderLoop : activeScene is null")
       this.activeScene.render();
     });
+
 
     window.addEventListener("resize", ev => {
       if(this.engine != null)

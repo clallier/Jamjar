@@ -71,7 +71,7 @@ class Preloader {
     this.register(key, newMeshes, particlesSystem, skeletons);
     if(this.isFinished()) {
       this.isLoading = false;
-      var screen:HTMLElement = document.getElementById("loadingScreen");
+      //var screen:HTMLElement = document.getElementById("loadingScreen");
       this.notifyComplete();
     }
   }

@@ -23,7 +23,7 @@ var SKYScene = (function (_super) {
 var SKY = (function () {
     function SKY(canvasId) {
         var _this = this;
-        this.version = "1.0.29";
+        this.version = "1.0.31";
         console.log("version: " + this.version);
         this.canvas = document.getElementById("renderCanvas");
         this.engine = new BABYLON.Engine(this.canvas, false);
@@ -82,6 +82,18 @@ document.addEventListener("DOMContentLoaded", function (ev) {
     else
         console.warn("Babylon not supported on this device/browser");
 });
+/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
+/// <reference path="SKYScene"/>
+var Cursor = (function () {
+    function Cursor(scene) {
+        this.scene = scene;
+    }
+    // todo: use SKYMesh
+    Cursor.prototype.select = function (item) {
+        item.playSelectionAnimation();
+    };
+    return Cursor;
+})();
 var Items = (function () {
     function Items() {
     }
@@ -90,6 +102,41 @@ var Items = (function () {
     Items.Ground = "Ground";
     Items.HiBot = "HiBot";
     return Items;
+})();
+var State = (function () {
+    function State() {
+    }
+    State.IDLE = 1;
+    State.MENU = 2;
+    State.MSEL = 3; // path selection
+    State.MOVE = 4;
+    State.DASH = 5;
+    State.SHOT = 6;
+    State.DSTY = 7; // DESTROY
+    return State;
+})();
+// Translated Text
+var TText = (function () {
+    function TText() {
+    }
+    TText.getValue = function (key) {
+        var fullKey = key + "_" + TText.langage;
+        var value = TText.textArray[fullKey];
+        if (value == undefined)
+            value = TText.textArray["default"];
+        return value;
+    };
+    TText.langage = "EN";
+    TText.textArray = {
+        "default": "Key not found",
+        "REM": "EN Texts",
+        "MENU_MOVE_EN": "MOVE",
+        "MENU_DASH_EN": "DASH",
+        "MENU_SHOOT_EN": "SHOOT",
+        "MENU_ENDTURN_EN": "END TURN",
+        "MENU_FS_EN": "FULLSCREEN"
+    };
+    return TText;
 })();
 var Factory = (function () {
     function Factory() {
@@ -182,6 +229,146 @@ var Factory = (function () {
     return Factory;
 })();
 /// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
+/// <reference path="SKYScene"/>
+var Player = (function () {
+    function Player(scene, position) {
+        this.mesh = null;
+        this.skeleton = null;
+        this.state = State.IDLE;
+        this.wait = 0; // / 100
+        this.PA = 5; // / 5
+        this.hasFocus = false;
+        this.isAnimated = true;
+        this.scene = scene;
+        // TODO creer un object pour contenir ces elements
+        // TODO trouver comment assigner le skeleton au mesh
+        this.mesh = scene.assets[Items.SpaceCowboy].mesh[0];
+        this.skeleton = scene.assets[Items.SpaceCowboy].skeletons[0];
+        this.mesh.position = position;
+        this.mesh.isVisible = true;
+        this.mesh.skeleton = this.skeleton;
+        console.log("player mesh " + this.mesh.id);
+        console.log("player skel " + this.skeleton.id);
+        // idle state is default state
+        this.setToIdleState();
+    }
+    Player.prototype.update = function (deltaTime) {
+        if (this.isAnimated == false)
+            return;
+        // msel (mvt selection)
+        if (this.state == State.MSEL) {
+            return;
+        }
+        // menu
+        if (this.state == State.MENU) {
+            return;
+        }
+        // 100% => focus and menu
+        if (this.state == State.IDLE && this.wait >= 100) {
+            this.state = State.MENU;
+            this.showMenu();
+            this.hasFocus = true;
+            return;
+        }
+        // state idle => just wait
+        if (this.state == State.IDLE) {
+            // deltaTime in ms!
+            this.wait += deltaTime / 100;
+            return;
+        }
+    };
+    Player.prototype.showMenu = function () {
+        var _this = this;
+        var menuDiv = document.getElementById("actionMenu");
+        var menuUl = document.createElement("ul");
+        var moveLi = document.createElement("li");
+        var moveBtn = document.createElement("button");
+        moveBtn.innerHTML = TText.getValue("MENU_MOVE");
+        var dashLi = document.createElement("li");
+        var dashBtn = document.createElement("button");
+        dashBtn.innerHTML = TText.getValue("MENU_DASH");
+        var shootLi = document.createElement("li");
+        var shootBtn = document.createElement("button");
+        shootBtn.innerHTML = TText.getValue("MENU_SHOOT");
+        var endLi = document.createElement("li");
+        var endBtn = document.createElement("button");
+        endBtn.innerHTML = TText.getValue("MENU_ENDTURN");
+        var fscreenLi = document.createElement("li");
+        var fscreenBtn = document.createElement("button");
+        fscreenBtn.innerHTML = TText.getValue("MENU_FS");
+        // Append all to the menu
+        menuDiv.appendChild(menuUl);
+        // move
+        menuUl.appendChild(moveLi);
+        moveLi.appendChild(moveBtn);
+        // dash
+        menuUl.appendChild(dashLi);
+        dashLi.appendChild(dashBtn);
+        // shoot
+        menuUl.appendChild(shootLi);
+        shootLi.appendChild(shootBtn);
+        // end turn
+        menuUl.appendChild(endLi);
+        endLi.appendChild(endBtn);
+        // fullscreen (TODO to move in a main menu)
+        menuUl.appendChild(fscreenLi);
+        fscreenLi.appendChild(fscreenBtn);
+        // 3. Add event handler
+        moveBtn.addEventListener("click", function () { return _this.initiateMove(); });
+        dashBtn.addEventListener("click", function () { return _this.eventDash(); });
+        shootBtn.addEventListener("click", function () { return _this.eventShoot(); });
+        endBtn.addEventListener("click", function () { return _this.eventEndOfTurn(); });
+        fscreenBtn.addEventListener("click", function () {
+            console.log("TOGGLE FULLSCREEN");
+            _this.scene.getEngine().switchFullscreen(false);
+        });
+    };
+    Player.prototype.hideMenu = function () {
+        var menuDiv = document.getElementById("actionMenu");
+        while (menuDiv.firstChild) {
+            menuDiv.removeChild(menuDiv.firstChild);
+        }
+    };
+    Player.prototype.getFocus = function () {
+        return this.hasFocus;
+    };
+    Player.prototype.setToIdleState = function () {
+        this.state = State.IDLE;
+        this.wait = 0; // / 100
+        this.PA = 5; // / 5
+        this.hasFocus = false;
+        this.isAnimated = true;
+        this.playIdleAnimation();
+    };
+    Player.prototype.initiateMove = function () {
+        console.log("OK LET'S MOVE");
+        this.hideMenu();
+        this.state = State.MSEL;
+        // getpos in tiles
+        // compute accessible tiles
+        // hightlight these tiles
+        // wait for pointer event
+    };
+    Player.prototype.eventDash = function () {
+        console.log("DAAAASH");
+    };
+    Player.prototype.eventShoot = function () {
+        console.log("SHOT");
+    };
+    Player.prototype.eventEndOfTurn = function () {
+        console.log("END OF TURN");
+        this.setToIdleState();
+        this.hideMenu();
+    };
+    Player.prototype.playIdleAnimation = function () {
+        this.scene.beginAnimation(this.skeleton, 0, 15, true);
+    };
+    Player.prototype.playSelectionAnimation = function () {
+        this.scene.beginAnimation(this.skeleton, 0, 15, true, 2);
+    };
+    return Player;
+})();
+/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
 /// <reference path="app.ts"/>
 var FileDesc = (function () {
     function FileDesc(key, path, name) {
@@ -233,7 +420,7 @@ var Preloader = (function () {
         this.register(key, newMeshes, particlesSystem, skeletons);
         if (this.isFinished()) {
             this.isLoading = false;
-            var screen = document.getElementById("loadingScreen");
+            //var screen:HTMLElement = document.getElementById("loadingScreen");
             this.notifyComplete();
         }
     };
@@ -268,8 +455,11 @@ var Level1 = (function (_super) {
     function Level1() {
         _super.apply(this, arguments);
         this.k = 3;
+        this.player = null;
+        this.cursor = null;
     }
     Level1.prototype.init = function (canvas, assets) {
+        var _this = this;
         console.log("init Level1");
         this.map = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -306,7 +496,7 @@ var Level1 = (function (_super) {
                         box.position = position;
                         break;
                     case 2:
-                        this.cloneAndMoveTo(Items.SpaceCowboy, position);
+                        this.player = new Player(this, position);
                         break;
                     case 3:
                         this.cloneAndMoveTo(Items.HiBot, position);
@@ -327,6 +517,9 @@ var Level1 = (function (_super) {
         var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
         this.activeCamera = camera;
         //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
+        // OK end of map init => now we select the player
+        this.beforeRender = function () { return _this.update(); };
+        this.skeletonsEnabled = true;
     };
     Level1.prototype.createGround = function () {
         console.log("tiledGround");
@@ -362,6 +555,11 @@ var Level1 = (function (_super) {
             mm.position = pos;
             mm.isVisible = true;
         });
+    };
+    Level1.prototype.update = function () {
+        var deltaTime = this.getEngine().getDeltaTime();
+        //console.log("lastDeltaTime : " + deltaTime);
+        this.player.update(deltaTime);
     };
     return Level1;
 })(SKYScene);
