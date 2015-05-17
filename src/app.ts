@@ -3,7 +3,7 @@
 
 class SKY {
 
-  version: string = "1.0.31";
+  version: string = "1.0.36";
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
 
@@ -55,7 +55,7 @@ class SKY {
   }
 
   notifyProgress(value: number) {
-    console.log("progress: " + value);
+    //console.log("progress: " + value);
     var box = this.loadingScene.getMeshByName("box");
     box.scaling.x = value * 5;
   }
@@ -78,7 +78,7 @@ class SKY {
 
     scene.init(this.canvas, this.assets);
     this.activeScene = scene;
-    console.log("new active scene: " + this.activeScene.name())
+    //console.log("new active scene: " + this.activeScene.name())
   }
 }
 

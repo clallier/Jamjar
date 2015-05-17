@@ -9,13 +9,16 @@ var SKYScene = (function (_super) {
     __extends(SKYScene, _super);
     function SKYScene(engine, name) {
         _super.call(this, engine);
+        this._mapHelper = null;
         this._name = "SKYScene";
         this._name = name;
-        console.log("call new SKYScene: " + this._name);
+        //console.log("call new SKYScene: " + this._name);
     }
     SKYScene.prototype.name = function () { return this._name; };
     SKYScene.prototype.init = function (canvas, assets) { };
     ;
+    SKYScene.prototype.createMapHelper = function (map) { this._mapHelper = new MapHelper(map); };
+    SKYScene.prototype.getMapHelper = function () { return this._mapHelper; };
     return SKYScene;
 })(BABYLON.Scene);
 /// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
@@ -23,7 +26,7 @@ var SKYScene = (function (_super) {
 var SKY = (function () {
     function SKY(canvasId) {
         var _this = this;
-        this.version = "1.0.31";
+        this.version = "1.0.37";
         console.log("version: " + this.version);
         this.canvas = document.getElementById("renderCanvas");
         this.engine = new BABYLON.Engine(this.canvas, false);
@@ -53,7 +56,7 @@ var SKY = (function () {
         }, false);
     }
     SKY.prototype.notifyProgress = function (value) {
-        console.log("progress: " + value);
+        //console.log("progress: " + value);
         var box = this.loadingScene.getMeshByName("box");
         box.scaling.x = value * 5;
     };
@@ -71,7 +74,7 @@ var SKY = (function () {
         }
         scene.init(this.canvas, this.assets);
         this.activeScene = scene;
-        console.log("new active scene: " + this.activeScene.name());
+        //console.log("new active scene: " + this.activeScene.name())
     };
     return SKY;
 })();
@@ -82,18 +85,6 @@ document.addEventListener("DOMContentLoaded", function (ev) {
     else
         console.warn("Babylon not supported on this device/browser");
 });
-/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
-/// <reference path="SKYScene"/>
-var Cursor = (function () {
-    function Cursor(scene) {
-        this.scene = scene;
-    }
-    // todo: use SKYMesh
-    Cursor.prototype.select = function (item) {
-        item.playSelectionAnimation();
-    };
-    return Cursor;
-})();
 var Items = (function () {
     function Items() {
     }
@@ -228,6 +219,76 @@ var Factory = (function () {
     };
     return Factory;
 })();
+var MapHelper = (function () {
+    function MapHelper(baseMap) {
+        this.K = 3;
+        this.height = baseMap.length;
+        this.width = baseMap[0].length;
+        this.actualMap = baseMap;
+    }
+    MapHelper.prototype.getW = function () { return this.width; };
+    MapHelper.prototype.getH = function () { return this.height; };
+    MapHelper.prototype.getK = function () { return this.K; };
+    MapHelper.prototype.getXZTile = function (position) {
+        var x = Math.floor(position.x / this.K);
+        var z = Math.floor(position.z / this.K);
+        return new BABYLON.Vector2(x, z);
+    };
+    MapHelper.prototype.getXYZ = function (tile, isCenteredOnTile, yTile) {
+        if (isCenteredOnTile === void 0) { isCenteredOnTile = true; }
+        if (yTile === void 0) { yTile = 0; }
+        var x = tile.x * this.K + (isCenteredOnTile ? 0.5 * this.K : 0);
+        var y = yTile * this.K;
+        var z = tile.y * this.K + (isCenteredOnTile ? 0.5 * this.K : 0);
+        return new BABYLON.Vector3(x, y, z);
+    };
+    MapHelper.prototype.getXYZMapCenter = function () {
+        //i*k-4*k, 0, j*k-3*k
+        var x = this.width / 2 * this.K;
+        var y = 0;
+        var z = this.height / 2 * this.K;
+        return new BABYLON.Vector3(x, y, z);
+    };
+    MapHelper.prototype.getTilesAccessibleFrom = function (tile, ray) {
+        ray = Math.round(ray);
+        console.log("ray: " + ray);
+        var tiles = new Array();
+        var min = new BABYLON.Vector2(Math.max(Math.round(tile.x - ray), 0), Math.max(Math.round(tile.y - ray), 0));
+        var max = new BABYLON.Vector2(Math.min(Math.round(tile.x + ray), this.width), Math.min(Math.round(tile.y + ray), this.height));
+        console.log("min: " + min.toString());
+        console.log("max: " + max.toString());
+        for (var j = min.y; j < max.y; j++) {
+            for (var i = min.x; i < max.x; i++) {
+                if (i < 0)
+                    continue;
+                else if (i > this.width)
+                    continue;
+                else if (j < 0)
+                    continue;
+                else if (j > this.height)
+                    continue;
+                var val = this.actualMap[j][i]; // accès par lignes/colonnes
+                if (val != 0)
+                    continue;
+                if (this.euclideanDist(tile.x, tile.y, i, j, ray)) {
+                    var newTile = new BABYLON.Vector2(i, j);
+                    tiles.push(newTile);
+                    console.log("newTile: " + newTile.toString());
+                }
+            }
+        }
+        return tiles;
+    };
+    MapHelper.prototype.manhattanDist = function (x1, y1, x2, y2, threshold) {
+        var d = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+        return (d <= threshold * threshold);
+    };
+    MapHelper.prototype.euclideanDist = function (x1, y1, x2, y2, threshold) {
+        var d = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+        return (d <= threshold * threshold);
+    };
+    return MapHelper;
+})();
 /// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
 /// <reference path="SKYScene"/>
 var Player = (function () {
@@ -236,7 +297,7 @@ var Player = (function () {
         this.skeleton = null;
         this.state = State.IDLE;
         this.wait = 0; // / 100
-        this.PA = 5; // / 5
+        this.PA = 0; // / 5
         this.hasFocus = false;
         this.isAnimated = true;
         this.scene = scene;
@@ -247,7 +308,7 @@ var Player = (function () {
         this.mesh.position = position;
         this.mesh.isVisible = true;
         this.mesh.skeleton = this.skeleton;
-        console.log("player mesh " + this.mesh.id);
+        //console.log("player mesh " + this.mesh.id);
         console.log("player skel " + this.skeleton.id);
         // idle state is default state
         this.setToIdleState();
@@ -335,7 +396,7 @@ var Player = (function () {
     Player.prototype.setToIdleState = function () {
         this.state = State.IDLE;
         this.wait = 0; // / 100
-        this.PA = 5; // / 5
+        this.PA = 3; // / 5
         this.hasFocus = false;
         this.isAnimated = true;
         this.playIdleAnimation();
@@ -345,9 +406,40 @@ var Player = (function () {
         this.hideMenu();
         this.state = State.MSEL;
         // getpos in tiles
+        var tile = this.scene.getMapHelper().getXZTile(this.mesh.position);
+        console.log("player will move from : " + tile.toString());
         // compute accessible tiles
+        var tiles = this.scene.getMapHelper().getTilesAccessibleFrom(tile, this.PA);
         // hightlight these tiles
+        var k = this.scene.getMapHelper().getK();
+        for (var t = 0; t < tiles.length; t++) {
+            var position = this.scene.getMapHelper().getXYZ(tiles[t]);
+            var cell = BABYLON.Mesh.CreatePlane("select", k * .8, this.scene);
+            var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+            mat.diffuseColor = BABYLON.Color3.Purple();
+            cell.material = mat;
+            position.y = 0.1;
+            cell.position = position;
+            cell.rotation.x = Math.PI / 2;
+        }
         // wait for pointer event
+    };
+    Player.prototype.checkPointer = function (evt, pickInfo) {
+        if (this.hasFocus == false)
+            return;
+        if (this.state == State.MSEL) {
+            console.log("TOUCH EVENT : MOVE SELECTION");
+            console.log("pt : " + pickInfo.pickedPoint);
+            var tile = this.scene.getMapHelper().getXZTile(pickInfo.pickedPoint);
+            var position = this.scene.getMapHelper().getXYZ(tile);
+            var cell = BABYLON.Mesh.CreatePlane("select", this.scene.getMapHelper().getK() * .9, this.scene);
+            var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+            mat.diffuseColor = BABYLON.Color3.Blue();
+            cell.material = mat;
+            position.y = 0.2;
+            cell.position = position;
+            cell.rotation.x = Math.PI / 2;
+        }
     };
     Player.prototype.eventDash = function () {
         console.log("DAAAASH");
@@ -394,7 +486,7 @@ var Preloader = (function () {
         this.filesToLoad.push(new FileDesc(key, path, name));
     };
     Preloader.prototype.start = function () {
-        console.log("loading started");
+        //console.log("loading started");
         this.isLoading = true;
         this.filesLoadedTotal = 0;
         for (var i = 0; i < this.filesToLoad.length; ++i) {
@@ -402,8 +494,8 @@ var Preloader = (function () {
         }
     };
     Preloader.prototype.loadFile = function (file) {
+        //console.log("loading " +file.key);
         var _this = this;
-        console.log("loading " + file.key);
         BABYLON.SceneLoader.ImportMesh(file.name, this.rootFolder, file.path, this.targetScene, function (newMeshes, particlesSystem, skeletons) {
             _this.onSuccess(file.key, newMeshes, particlesSystem, skeletons);
         }, null, function () {
@@ -411,7 +503,7 @@ var Preloader = (function () {
         });
     };
     Preloader.prototype.onSuccess = function (key, newMeshes, particlesSystem, skeletons) {
-        console.log("loading " + key + " complete");
+        //console.log("loading " + key + " complete");
         this.filesLoadedTotal++;
         this.notifyProgress();
         newMeshes.forEach(function (m) {
@@ -454,13 +546,11 @@ var Level1 = (function (_super) {
     __extends(Level1, _super);
     function Level1() {
         _super.apply(this, arguments);
-        this.k = 3;
         this.player = null;
-        this.cursor = null;
     }
     Level1.prototype.init = function (canvas, assets) {
         var _this = this;
-        console.log("init Level1");
+        //console.log("init Level1");
         this.map = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -470,23 +560,25 @@ var Level1 = (function (_super) {
             [1, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
+        this.createMapHelper(this.map);
         this.assets = assets;
-        console.log("lights");
+        //console.log("lights");
         var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), this);
         light1.intensity = 0.8;
         var light2 = new BABYLON.DirectionalLight("light2", new BABYLON.Vector3(0, -1, -1), this);
         light2.position = new BABYLON.Vector3(0, 20, 0);
-        console.log("fog");
+        //console.log("fog");
         this.fogMode = BABYLON.Scene.FOGMODE_EXP2;
         this.fogEnabled = false;
         this.fogDensity = 0.02;
-        var k = this.k;
+        var k = this.getMapHelper().getK();
         for (var j = 0; j < this.map.length; j++) {
             for (var i = 0; i < this.map[j].length; i++) {
-                var position = new BABYLON.Vector3(i * k - 4 * k, 0, j * k - 3 * k);
+                var tile = new BABYLON.Vector2(i, j);
+                var position = this.getMapHelper().getXYZ(tile);
                 switch (this.map[j][i]) {
                     case 1:
-                        console.log("box");
+                        //console.log("box");
                         var box = BABYLON.Mesh.CreateBox("box", k * .8, this);
                         var boxMaterial = new BABYLON.StandardMaterial("boxMaterial", this);
                         boxMaterial.diffuseColor = BABYLON.Color3.Yellow();
@@ -513,21 +605,27 @@ var Level1 = (function (_super) {
         }
         // for each add a square to represent the ground
         this.createGround();
-        console.log("camera");
-        var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
-        this.activeCamera = camera;
+        //console.log("camera");
+        var radius = this.getMapHelper().getW() * this.getMapHelper().getK();
+        var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 4.0, radius, this.getMapHelper().getXYZMapCenter(), this);
+        //this.activeCamera = camera;
         //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
         // OK end of map init => now we select the player
         this.beforeRender = function () { return _this.update(); };
+        this.onPointerDown = function (evt, pickinfo) { return _this.checkPointer(evt, pickinfo); };
         this.skeletonsEnabled = true;
     };
     Level1.prototype.createGround = function () {
-        console.log("tiledGround");
-        var k = this.k;
-        var subdivision = { w: 9, h: 7 };
+        //console.log("tiledGround");
+        var subdivision = { w: this.getMapHelper().getW(), h: this.getMapHelper().getH() };
         var precision = { w: 1, h: 1 };
+        var min = this.getMapHelper().getXYZ(new BABYLON.Vector2(0, 0), false);
+        var max = this.getMapHelper().getXYZ(new BABYLON.Vector2(this.getMapHelper().getW(), this.getMapHelper().getH()), false);
+        // console.log("subdivision : " + subdivision.w + ", " + subdivision.h);
+        // console.log("ground min : " + min.toString());
+        // console.log("ground max : " + max.toString());
         // map : 9*7 tiles
-        this.ground = BABYLON.Mesh.CreateTiledGround("ground", -4.5 * k, -3.5 * k, 4.5 * k, 3.5 * k, subdivision, precision, this);
+        this.ground = BABYLON.Mesh.CreateTiledGround("ground", min.x, min.z, max.x, max.z, subdivision, precision, this);
         var whiteMaterial = new BABYLON.StandardMaterial("White", this);
         whiteMaterial.diffuseColor = new BABYLON.Color3(.97, .89, .42); //light yellow // TODO defines these colors in defines
         var blackMaterial = new BABYLON.StandardMaterial("Black", this);
@@ -548,7 +646,7 @@ var Level1 = (function (_super) {
         }
     };
     Level1.prototype.cloneAndMoveTo = function (name, pos) {
-        console.log("cloning " + name);
+        //console.log("cloning " + name);
         var item = this.assets[name].mesh;
         item.forEach(function (m) {
             var mm = m.clone();
@@ -561,6 +659,9 @@ var Level1 = (function (_super) {
         //console.log("lastDeltaTime : " + deltaTime);
         this.player.update(deltaTime);
     };
+    Level1.prototype.checkPointer = function (evt, pickInfo) {
+        this.player.checkPointer(evt, pickInfo);
+    };
     return Level1;
 })(SKYScene);
 /// <reference path="../../js/Babylon.js-master/babylon.2.1.d.ts"/>
@@ -571,7 +672,7 @@ var LoadingScene = (function (_super) {
         _super.apply(this, arguments);
     }
     LoadingScene.prototype.init = function (canvas, assets) {
-        console.log("init loadingScene");
+        //console.log("init loadingScene");
         var camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(0, 10, 0), this);
         var light1 = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 10, 0), this);
         light1.intensity = 1;

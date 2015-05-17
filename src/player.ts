@@ -8,9 +8,10 @@ class Player{
   skeleton:BABYLON.Skeleton = null;
   state:State = State.IDLE;
   wait = 0; // / 100
-  PA = 5; // / 5
+  PA = 0; // / 5
   hasFocus = false;
   isAnimated = true;
+  selectedTile:BABYLON.Vector2;
 
   constructor(scene:SKYScene, position:BABYLON.Vector3) {
 
@@ -24,7 +25,7 @@ class Player{
     this.mesh.isVisible = true;
     this.mesh.skeleton = this.skeleton;
 
-    console.log("player mesh " + this.mesh.id);
+    //console.log("player mesh " + this.mesh.id);
     console.log("player skel " + this.skeleton.id);
 
     // idle state is default state
@@ -128,7 +129,7 @@ class Player{
   setToIdleState() {
     this.state = State.IDLE;
     this.wait = 0; // / 100
-    this.PA = 5; // / 5
+    this.PA = 3; // / 5
     this.hasFocus = false;
     this.isAnimated = true;
     this.playIdleAnimation();
@@ -141,12 +142,46 @@ class Player{
     this.state = State.MSEL;
 
     // getpos in tiles
+    let tile = this.scene.getMapHelper().getXZTile(this.mesh.position);
+    console.log("player will move from : " + tile.toString())
 
     // compute accessible tiles
+    let tiles = this.scene.getMapHelper().getTilesAccessibleFrom(tile, this.PA);
 
     // hightlight these tiles
+    let k = this.scene.getMapHelper().getK();
+
+    for(let t = 0; t<tiles.length; t++) {
+      let position = this.scene.getMapHelper().getXYZ(tiles[t]);
+      let cell = BABYLON.Mesh.CreatePlane("select", k*.8, this.scene);
+      let mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+      mat.diffuseColor = BABYLON.Color3.Purple();
+      cell.material = mat;
+      position.y = 0.1;
+      cell.position = position;
+      cell.rotation.x = Math.PI/2;
+    }
 
     // wait for pointer event
+  }
+
+  checkPointer(evt: PointerEvent, pickInfo: BABYLON.PickingInfo) {
+    if(this.hasFocus == false) return;
+
+    if(this.state == State.MSEL) {
+      console.log("TOUCH EVENT : MOVE SELECTION");
+      console.log("pt : "+ pickInfo.pickedPoint);
+      if(pickInfo.pickedPoint == null) return;
+      let tile = this.scene.getMapHelper().getXZTile(pickInfo.pickedPoint);
+      let position = this.scene.getMapHelper().getXYZ(tile);
+      let cell = BABYLON.Mesh.CreatePlane("select",  this.scene.getMapHelper().getK()*.9, this.scene);
+      let mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+      mat.diffuseColor = BABYLON.Color3.Blue();
+      cell.material = mat;
+      position.y = 0.2;
+      cell.position = position;
+      cell.rotation.x = Math.PI/2;
+    }
   }
 
   eventDash() {

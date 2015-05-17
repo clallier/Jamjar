@@ -5,7 +5,7 @@
 class LoadingScene extends SKYScene {
 
   public init(canvas:HTMLCanvasElement, assets: Object[]) {
-    console.log("init loadingScene");
+    //console.log("init loadingScene");
     var camera = new BABYLON.FollowCamera ("camera", new BABYLON.Vector3(0, 10, 0), this);
 
     var light1 = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 10, 0), this);

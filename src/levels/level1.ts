@@ -3,14 +3,12 @@
 
 class Level1 extends SKYScene {
 
-  map;
+  map:Array<Array<number>>;
   ground: BABYLON.Mesh;
-  k = 3;
   player:Player = null;
-  cursor:Cursor = null;
 
   public init(canvas:HTMLCanvasElement, assets: Object[]) {
-    console.log("init Level1");
+    //console.log("init Level1");
     this.map = [
       [1,1,1,1,1,1,1,1,1],
       [1,0,0,0,0,0,0,0,1],
@@ -21,28 +19,30 @@ class Level1 extends SKYScene {
       [1,1,1,1,1,1,1,1,1]
     ];
 
+    this.createMapHelper(this.map);
     this.assets = assets;
 
-    console.log("lights");
+    //console.log("lights");
     var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), this);
     light1.intensity = 0.8;
 
     var light2 = new BABYLON.DirectionalLight("light2", new BABYLON.Vector3(0, -1, -1), this);
     light2.position = new BABYLON.Vector3(0, 20, 0);
 
-    console.log("fog");
+    //console.log("fog");
     this.fogMode = BABYLON.Scene.FOGMODE_EXP2;
     this.fogEnabled = false;
     this.fogDensity = 0.02;
 
-    let k = this.k;
+    let k = this.getMapHelper().getK();
     for (let j = 0; j < this.map.length; j++) {
       for (let i = 0; i < this.map[j].length; i++) {
-        let position = new BABYLON.Vector3(i*k-4*k, 0, j*k-3*k);
+        let tile = new BABYLON.Vector2(i, j);
+        let position = this.getMapHelper().getXYZ(tile);
 
         switch(this.map[j][i]) {
           case 1:
-            console.log("box");
+            //console.log("box");
             var box = BABYLON.Mesh.CreateBox("box", k*.8, this);
             var boxMaterial = new BABYLON.StandardMaterial("boxMaterial", this);
             boxMaterial.diffuseColor = BABYLON.Color3.Yellow();
@@ -75,24 +75,31 @@ class Level1 extends SKYScene {
     // for each add a square to represent the ground
     this.createGround();
 
-    console.log("camera");
-    var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 6.0, 27.0, new BABYLON.Vector3(0, 0, 0), this);
-    this.activeCamera = camera;
+    //console.log("camera");
+    let radius = this.getMapHelper().getW() * this.getMapHelper().getK();
+    var camera = new BABYLON.ArcRotateCamera("camera", 3 * Math.PI / 2.0, Math.PI / 4.0, radius, this.getMapHelper().getXYZMapCenter(), this);
+    //this.activeCamera = camera;
     //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
 
     // OK end of map init => now we select the player
 
     this.beforeRender = () => this.update();
+    this.onPointerDown = (evt, pickinfo) => this.checkPointer(evt, pickinfo);
     this.skeletonsEnabled = true;
   }
 
   createGround() {
-    console.log("tiledGround");
-    let k = this.k;
-    var subdivision = {w:9, h:7};
-    var precision = {w:1, h:1};
+    //console.log("tiledGround");
+    let subdivision = {w:this.getMapHelper().getW(), h:this.getMapHelper().getH()};
+    let precision = {w:1, h:1};
+    let min = this.getMapHelper().getXYZ(new BABYLON.Vector2(0, 0), false);
+    let max = this.getMapHelper().getXYZ(new BABYLON.Vector2(this.getMapHelper().getW(), this.getMapHelper().getH()), false);
+    // console.log("subdivision : " + subdivision.w + ", " + subdivision.h);
+    // console.log("ground min : " + min.toString());
+    // console.log("ground max : " + max.toString());
+
     // map : 9*7 tiles
-    this.ground = BABYLON.Mesh.CreateTiledGround("ground", -4.5*k, -3.5*k, 4.5*k, 3.5*k, subdivision, precision, this);
+    this.ground = BABYLON.Mesh.CreateTiledGround("ground", min.x, min.z, max.x, max.z, subdivision, precision, this);
     var whiteMaterial = new BABYLON.StandardMaterial("White", this);
     whiteMaterial.diffuseColor = new BABYLON.Color3(.97, .89, .42); //light yellow // TODO defines these colors in defines
 
@@ -118,7 +125,7 @@ class Level1 extends SKYScene {
   }
 
   cloneAndMoveTo(name:string, pos: BABYLON.Vector3) {
-    console.log("cloning " + name);
+    //console.log("cloning " + name);
     var item = this.assets[name].mesh;
     item.forEach(function(m) {
         var mm = m.clone();
@@ -131,5 +138,9 @@ class Level1 extends SKYScene {
     var deltaTime:number = this.getEngine().getDeltaTime();
     //console.log("lastDeltaTime : " + deltaTime);
     this.player.update(deltaTime);
+  }
+
+  checkPointer(evt: PointerEvent, pickInfo: BABYLON.PickingInfo) {
+    this.player.checkPointer(evt, pickInfo);
   }
 }
