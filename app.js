@@ -690,11 +690,7 @@ var Preloader = (function () {
     };
     Preloader.prototype.loadFile = function (file) {
         //console.log("loading " +file.key);
-        BABYLON.SceneLoader.ImportMesh(file.name, this.rootFolder, file.path, this.targetScene, function (newMeshes, particlesSystem, skeletons) {
-            this.onSuccess(file.key, newMeshes, particlesSystem, skeletons);
-        }, null, function () {
-            this.onError(file.name, file.path);
-        });
+        BABYLON.SceneLoader.ImportMesh(file.name, this.rootFolder, file.path, this.targetScene, function (newMeshes, particlesSystem, skeletons) { return this.onSuccess(file.key, newMeshes, particlesSystem, skeletons); }, null, function () { return this.onError(file.name, file.path); });
     };
     Preloader.prototype.onSuccess = function (key, newMeshes, particlesSystem, skeletons) {
         //console.log("loading " + key + " complete");

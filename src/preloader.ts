@@ -41,23 +41,22 @@ class Preloader {
     this.isLoading = true;
     this.filesLoadedTotal = 0;
 
-    for(var i=0; i < this.filesToLoad.length; ++i){
+    for(var i=0; i < this.filesToLoad.length; ++i) {
       this.loadFile(this.filesToLoad[i]);
     }
   }
 
   loadFile(file:FileDesc) {
     //console.log("loading " +file.key);
-
-    BABYLON.SceneLoader.ImportMesh(file.name, this.rootFolder, file.path, this.targetScene,
-    (newMeshes, particlesSystem, skeletons) => {
-      this.onSuccess(file.key, newMeshes, particlesSystem, skeletons);
-    },
-    null,
-    () => {
-      this.onError(file.name, file.path);
-    }
-  );
+      BABYLON.SceneLoader.ImportMesh(
+      file.name,
+      this.rootFolder,
+      file.path,
+      this.targetScene,
+      (newMeshes, particlesSystem, skeletons) => this.onSuccess(file.key, newMeshes, particlesSystem, skeletons),
+      null,
+      () => this.onError(file.name, file.path)
+    );
   }
 
   onSuccess(key: string, newMeshes: BABYLON.AbstractMesh[], particlesSystem: BABYLON.ParticleSystem[], skeletons: BABYLON.Skeleton[]) {
