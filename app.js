@@ -1,10 +1,4 @@
 /// <reference path="..\js\Babylon.js-master\babylon.2.1.d.ts"/>
-var __extends = this.__extends || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
-};
 var SKYScene = (function (_super) {
     __extends(SKYScene, _super);
     function SKYScene(engine, name) {
@@ -25,7 +19,6 @@ var SKYScene = (function (_super) {
 /// <reference path="SKYScene"/>
 var SKY = (function () {
     function SKY(canvasId) {
-        var _this = this;
         this.version = "1.0.37";
         console.log("version: " + this.version);
         this.canvas = document.getElementById("renderCanvas");
@@ -46,13 +39,14 @@ var SKY = (function () {
         this.loader.start();
         // create main render loop
         this.engine.runRenderLoop(function () {
-            if (_this.activeScene == null)
+            if (this.activeScene == null)
                 console.log("runRenderLoop : activeScene is null");
-            _this.activeScene.render();
+            else
+                this.activeScene.render();
         });
         window.addEventListener("resize", function (ev) {
-            if (_this.engine != null)
-                _this.engine.resize();
+            if (this.engine != null)
+                this.engine.resize();
         }, false);
     }
     SKY.prototype.notifyProgress = function (value) {
@@ -270,27 +264,238 @@ var MapHelper = (function () {
                 var val = this.actualMap[j][i]; // accès par lignes/colonnes
                 if (val != 0)
                     continue;
-                if (this.euclideanDist(tile.x, tile.y, i, j, ray)) {
-                    var newTile = new BABYLON.Vector2(i, j);
+                var newTile = new BABYLON.Vector2(i, j);
+                if (this.pathExists(tile, newTile, ray)) {
                     tiles.push(newTile);
-                    console.log("newTile: " + newTile.toString());
                 }
             }
         }
         return tiles;
     };
-    MapHelper.prototype.manhattanDist = function (x1, y1, x2, y2, threshold) {
-        var d = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-        return (d <= threshold * threshold);
-    };
-    MapHelper.prototype.euclideanDist = function (x1, y1, x2, y2, threshold) {
-        var d = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-        return (d <= threshold * threshold);
+    MapHelper.prototype.pathExists = function (start, end, threshold) {
+        var pathfinder = new AS(this.actualMap, start, end, threshold);
+        if (pathfinder.path.length > 0 && pathfinder.path.length < threshold)
+            return true;
+        return false;
     };
     return MapHelper;
 })();
 /// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
 /// <reference path="SKYScene"/>
+var ASNode = (function () {
+    function ASNode(x, y, v, f, g, h, parent) {
+        if (f === void 0) { f = 0; }
+        if (g === void 0) { g = 0; }
+        if (h === void 0) { h = 0; }
+        if (parent === void 0) { parent = null; }
+        this.x = x;
+        this.y = y;
+        this.v = v;
+        this.f = f;
+        this.g = g;
+        this.h = h;
+        this.parent = parent;
+    }
+    ASNode.prototype.toVector2 = function () {
+        return new BABYLON.Vector2(this.x, this.y);
+    };
+    return ASNode;
+})();
+var AS = (function () {
+    /*************************************************************************
+    * map : the current map to go througth
+    * firstNode : the current node {x, y}
+    * targetNode : the target node {x, y}
+    * where    x: xpos in tile
+    *          y: ypos in tile
+    *          f: 0 (the result of the f(x) on this node)
+    *          g: 0 (the GScore of this node)
+    *          h: 0 (the heuristic result on this node)
+    *          parent: null (the previous node in the AStar chain)
+    *
+    * Return the path to the target
+    */
+    function AS(map, firstNode, targetNode, maxDist) {
+        if (maxDist === void 0) { maxDist = 10; }
+        var i, l, openList = new Array(), closedList = new Array();
+        // copy locally the map
+        this.map = [];
+        for (i = 0, l = map.length; i < l; i++) {
+            this.map.push([]);
+            for (var j = 0, k = map[i].length; j < k; j++) {
+                var o = new ASNode(i, j, map[i][j]);
+                this.map[i].push(o);
+            }
+        }
+        // add first block
+        openList.push(this.map[firstNode.x][firstNode.y]);
+        while (openList.length > 0) {
+            // Grab the lowest f(x) to process next
+            var lowInd = 0;
+            for (i = 0; i < openList.length; ++i) {
+                if (openList[i].f < openList[lowInd].f) {
+                    lowInd = i;
+                }
+            }
+            var currentNode = openList[lowInd];
+            // End case -- result has been found, return the traced path
+            if (currentNode.y === targetNode.y && currentNode.x === targetNode.x) {
+                var tmpNode = currentNode;
+                var tmpPath = new Array();
+                while (tmpNode.parent != null) {
+                    tmpPath.push(new BABYLON.Vector2(tmpNode.x, tmpNode.y));
+                    tmpNode = tmpNode.parent;
+                }
+                // push the first one
+                tmpPath.push(new BABYLON.Vector2(tmpNode.x, tmpNode.y));
+                tmpPath.reverse();
+                this.path = tmpPath;
+                //console.log("path: " + this.path);
+                return;
+            }
+            // Normal case -- move currentNode from open to closed, process each of its neighbors
+            openList.splice(lowInd); // remove currentNode;
+            closedList.push(currentNode);
+            var neighbors = this.getNeighbors(currentNode);
+            for (i = 0; i < neighbors.length; ++i) {
+                var neighbor = neighbors[i];
+                // not a valid node to process, skip to next neighbor
+                if (closedList.indexOf(neighbor) !== -1)
+                    continue;
+                // g score is the shortest distance from start to current node, we need to check if
+                //	 the path we have arrived at this neighbor is the shortest one we have seen yet
+                var gScore = currentNode.g + 1; // 1 is the distance from a node to it's neighbor
+                var gScoreIsBest = false;
+                if (openList.indexOf(neighbor) === -1) {
+                    // This the the first time we have arrived at this node, it must be the best
+                    // Also, we need to take the h (heuristic) score since we haven't done so yet
+                    gScoreIsBest = true;
+                    neighbor.h = this.heuristic(neighbor.x, neighbor.y, targetNode.x, targetNode.y);
+                    openList.push(neighbor);
+                }
+                else if (gScore < neighbor.g) {
+                    // We have already seen the node, but last time it had a worse g (distance from start)
+                    gScoreIsBest = true;
+                }
+                if (gScoreIsBest) {
+                    // Found an optimal (so far) path to this node.	 Store info on how we got here and
+                    //	just how good it really is...
+                    neighbor.parent = currentNode;
+                    neighbor.g = gScore;
+                    neighbor.f = neighbor.g + neighbor.h;
+                }
+            }
+        }
+        //return [];
+    }
+    /******************************************************************
+    * return the neighbors list of the node b
+    */
+    AS.prototype.getNeighbors = function (node) {
+        var neighbors = [], l, r, t, b;
+        // l&r neigbors
+        if (node.z - 1 >= 0)
+            l = this.map[node.x][node.z - 1];
+        if (l !== undefined && l.v === 0)
+            neighbors.push(l);
+        if (node.z + 1 < this.map[node.x].length)
+            r = this.map[node.x][node.z + 1];
+        if (r !== undefined && r.v === 0)
+            neighbors.push(r);
+        // t&b neigbors
+        if (node.x - 1 >= 0)
+            b = this.map[node.x - 1][node.z];
+        if (b !== undefined && b.v === 0)
+            neighbors.push(b);
+        if (node.x + 1 < this.map.length)
+            t = this.map[node.x + 1][node.z];
+        if (t !== undefined && t.v === 0)
+            neighbors.push(t);
+        return neighbors;
+    };
+    AS.prototype.heuristic = function (x1, y1, x2, y2) {
+        var d1 = Math.abs(x2 - x1);
+        var d2 = Math.abs(y2 - y1);
+        return d1 + d2; //manhattan dist
+    };
+    AS.prototype.getNextMove = function (currentPosition) {
+        var i, l;
+        for (i = 0, l = this.path.length; i < l; ++i) {
+            if (this.path[i].x === currentPosition.x &&
+                this.path[i].y === currentPosition.y) {
+                // not the end of path
+                if (i < l - 1) {
+                    //console.log("move to :" + this.path[i+1].x + ", " this.path[i+1].z);
+                    return new BABYLON.Vector2((this.path[i + 1].x - currentPosition.x), (this.path[i + 1].y - currentPosition.y));
+                }
+            }
+        }
+        // end of path, or current position not matched
+        return new BABYLON.Vector2(0, 0);
+    };
+    return AS;
+})();
+/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
+/// <reference path="SKYScene"/>
+var PathSelector = (function () {
+    function PathSelector(scene) {
+        this.scene = scene;
+    }
+    PathSelector.prototype.clearAll = function () {
+        this.selectedTile = null;
+        this.tiles = new Array();
+        this.cells = new Array();
+    };
+    PathSelector.prototype.initFrom = function (tile, ray) {
+        //clear all
+        this.clearAll();
+        // compute accessible tiles
+        this.tiles = this.scene.getMapHelper().getTilesAccessibleFrom(tile, ray);
+        // hightlight these tiles
+        var k = this.scene.getMapHelper().getK();
+        // TODO fancy !
+        var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+        mat.diffuseColor = BABYLON.Color3.Purple();
+        for (var t = 0; t < this.tiles.length; t++) {
+            var position = this.scene.getMapHelper().getXYZ(this.tiles[t]);
+            var cell = BABYLON.Mesh.CreatePlane("select", k * .8, this.scene);
+            cell.material = mat;
+            position.y = 0.1;
+            cell.position = position;
+            cell.rotation.x = Math.PI / 2;
+            this.cells.push(cell);
+        }
+    };
+    PathSelector.prototype.selectAgainst = function (tile) {
+        // pas de tiles ajoutés lors de initFrom
+        if (this.tiles == null)
+            return false;
+        // idem
+        if (this.tiles.length == 0)
+            return;
+        // recherche le tile passé en paramètre
+        var idx = this.tiles.indexOf(tile);
+        // si pas de correspondance trouvée
+        if (idx == -1)
+            return;
+        // si le tile trouvé correspond à celui déjà séléctionné
+        // => double selection (ou selection-validation)
+        if (this.selectedTile == tile)
+            return true;
+        // mise en evidence du tile slectionné
+        this.selectedTile = tile;
+        var cell = this.cells[idx];
+        var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
+        mat.diffuseColor = BABYLON.Color3.Blue();
+        cell.material = mat;
+        // TODO MAJ du path
+        return false;
+    };
+    return PathSelector;
+})();
+/// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
+/// <reference path="SKYScene"/>
+/// <reference path="PathSelector"/>
 var Player = (function () {
     function Player(scene, position) {
         this.mesh = null;
@@ -312,10 +517,15 @@ var Player = (function () {
         console.log("player skel " + this.skeleton.id);
         // idle state is default state
         this.setToIdleState();
+        this.pathSelector = new PathSelector(scene);
     }
     Player.prototype.update = function (deltaTime) {
         if (this.isAnimated == false)
             return;
+        // en mvt
+        if (this.state == State.MOVE) {
+            return;
+        }
         // msel (mvt selection)
         if (this.state == State.MSEL) {
             return;
@@ -339,7 +549,6 @@ var Player = (function () {
         }
     };
     Player.prototype.showMenu = function () {
-        var _this = this;
         var menuDiv = document.getElementById("actionMenu");
         var menuUl = document.createElement("ul");
         var moveLi = document.createElement("li");
@@ -375,13 +584,13 @@ var Player = (function () {
         menuUl.appendChild(fscreenLi);
         fscreenLi.appendChild(fscreenBtn);
         // 3. Add event handler
-        moveBtn.addEventListener("click", function () { return _this.initiateMove(); });
-        dashBtn.addEventListener("click", function () { return _this.eventDash(); });
-        shootBtn.addEventListener("click", function () { return _this.eventShoot(); });
-        endBtn.addEventListener("click", function () { return _this.eventEndOfTurn(); });
+        moveBtn.addEventListener("click", function () { return this.initiateMove(); });
+        dashBtn.addEventListener("click", function () { return this.eventDash(); });
+        shootBtn.addEventListener("click", function () { return this.eventShoot(); });
+        endBtn.addEventListener("click", function () { return this.eventEndOfTurn(); });
         fscreenBtn.addEventListener("click", function () {
             console.log("TOGGLE FULLSCREEN");
-            _this.scene.getEngine().switchFullscreen(false);
+            this.scene.getEngine().switchFullscreen(false);
         });
     };
     Player.prototype.hideMenu = function () {
@@ -408,20 +617,8 @@ var Player = (function () {
         // getpos in tiles
         var tile = this.scene.getMapHelper().getXZTile(this.mesh.position);
         console.log("player will move from : " + tile.toString());
-        // compute accessible tiles
-        var tiles = this.scene.getMapHelper().getTilesAccessibleFrom(tile, this.PA);
-        // hightlight these tiles
-        var k = this.scene.getMapHelper().getK();
-        for (var t = 0; t < tiles.length; t++) {
-            var position = this.scene.getMapHelper().getXYZ(tiles[t]);
-            var cell = BABYLON.Mesh.CreatePlane("select", k * .8, this.scene);
-            var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
-            mat.diffuseColor = BABYLON.Color3.Purple();
-            cell.material = mat;
-            position.y = 0.1;
-            cell.position = position;
-            cell.rotation.x = Math.PI / 2;
-        }
+        // TODO pathSelector. init
+        this.pathSelector.initFrom(tile, this.PA);
         // wait for pointer event
     };
     Player.prototype.checkPointer = function (evt, pickInfo) {
@@ -430,15 +627,13 @@ var Player = (function () {
         if (this.state == State.MSEL) {
             console.log("TOUCH EVENT : MOVE SELECTION");
             console.log("pt : " + pickInfo.pickedPoint);
+            if (pickInfo.pickedPoint == null)
+                return;
             var tile = this.scene.getMapHelper().getXZTile(pickInfo.pickedPoint);
-            var position = this.scene.getMapHelper().getXYZ(tile);
-            var cell = BABYLON.Mesh.CreatePlane("select", this.scene.getMapHelper().getK() * .9, this.scene);
-            var mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
-            mat.diffuseColor = BABYLON.Color3.Blue();
-            cell.material = mat;
-            position.y = 0.2;
-            cell.position = position;
-            cell.rotation.x = Math.PI / 2;
+            // permet de gere la selection-validation d'un tile pour le déplacement
+            if (this.pathSelector.selectAgainst(tile)) {
+                this.state = State.MOVE;
+            }
         }
     };
     Player.prototype.eventDash = function () {
@@ -495,11 +690,10 @@ var Preloader = (function () {
     };
     Preloader.prototype.loadFile = function (file) {
         //console.log("loading " +file.key);
-        var _this = this;
         BABYLON.SceneLoader.ImportMesh(file.name, this.rootFolder, file.path, this.targetScene, function (newMeshes, particlesSystem, skeletons) {
-            _this.onSuccess(file.key, newMeshes, particlesSystem, skeletons);
+            this.onSuccess(file.key, newMeshes, particlesSystem, skeletons);
         }, null, function () {
-            _this.onError(file.name, file.path);
+            this.onError(file.name, file.path);
         });
     };
     Preloader.prototype.onSuccess = function (key, newMeshes, particlesSystem, skeletons) {
@@ -549,7 +743,6 @@ var Level1 = (function (_super) {
         this.player = null;
     }
     Level1.prototype.init = function (canvas, assets) {
-        var _this = this;
         //console.log("init Level1");
         this.map = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -611,8 +804,8 @@ var Level1 = (function (_super) {
         //this.activeCamera = camera;
         //this.activeCamera.attachControl(canvas); //onlyt for debug (in game cam must be static)
         // OK end of map init => now we select the player
-        this.beforeRender = function () { return _this.update(); };
-        this.onPointerDown = function (evt, pickinfo) { return _this.checkPointer(evt, pickinfo); };
+        this.beforeRender = function () { return this.update(); };
+        this.onPointerDown = function (evt, pickinfo) { return this.checkPointer(evt, pickinfo); };
         this.skeletonsEnabled = true;
     };
     Level1.prototype.createGround = function () {

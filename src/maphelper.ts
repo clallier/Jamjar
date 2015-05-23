@@ -68,25 +68,31 @@ class MapHelper {
         let val = this.actualMap[j][i]; // accès par lignes/colonnes
         if(val != 0) continue;
 
-        if(this.euclideanDist(tile.x, tile.y, i, j, ray)) {
-          let newTile = new BABYLON.Vector2(i,j);
+        let newTile = new BABYLON.Vector2(i, j);
+        if(this.pathExists(tile, newTile, ray)) {
           tiles.push(newTile);
-          console.log("newTile: " + newTile.toString());
+          //console.log("newTile: " + newTile.toString());
         }
       }
     }
     return tiles;
   }
 
-
+  pathExists(start:BABYLON.Vector2, end:BABYLON.Vector2, threshold:number) {
+    let pathfinder = new AS(this.actualMap, start, end, threshold);
+    if(pathfinder.path.length > 0 && pathfinder.path.length < threshold) return true;
+    return false;
+  }
+  /*
   manhattanDist(x1:number, y1:number, x2:number, y2:number, threshold:number): boolean {
-    let d = (x2-x1)*(x2-x1)+(y2-y1)*(y2-y1);
-    return (d <= threshold*threshold);
+    let d = Math.abs(x2-x1)+Math.abs(y2-y1);
+    return (d <= threshold);
   }
 
 
   euclideanDist(x1:number, y1:number, x2:number, y2:number, threshold:number): boolean {
       let d = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-      return (d <= threshold*threshold);
+      return (d <= threshold);
     }
+  */
 }

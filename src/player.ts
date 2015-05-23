@@ -1,5 +1,6 @@
 /// <reference path="../js/Babylon.js-master/babylon.2.1.d.ts"/>
 /// <reference path="SKYScene"/>
+/// <reference path="PathSelector"/>
 
 class Player{
 
@@ -11,7 +12,7 @@ class Player{
   PA = 0; // / 5
   hasFocus = false;
   isAnimated = true;
-  selectedTile:BABYLON.Vector2;
+  pathSelector: PathSelector;
 
   constructor(scene:SKYScene, position:BABYLON.Vector3) {
 
@@ -30,10 +31,18 @@ class Player{
 
     // idle state is default state
     this.setToIdleState();
+
+    this.pathSelector = new PathSelector(scene);
   }
 
   update(deltaTime:number) {
     if(this.isAnimated == false) return;
+
+
+    // en mvt
+    if(this.state == State.MOVE) {
+      return;
+    }
 
     // msel (mvt selection)
     if(this.state == State.MSEL) {
@@ -145,23 +154,8 @@ class Player{
     let tile = this.scene.getMapHelper().getXZTile(this.mesh.position);
     console.log("player will move from : " + tile.toString())
 
-    // compute accessible tiles
-    let tiles = this.scene.getMapHelper().getTilesAccessibleFrom(tile, this.PA);
-
-    // hightlight these tiles
-    let k = this.scene.getMapHelper().getK();
-
-    for(let t = 0; t<tiles.length; t++) {
-      let position = this.scene.getMapHelper().getXYZ(tiles[t]);
-      let cell = BABYLON.Mesh.CreatePlane("select", k*.8, this.scene);
-      let mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
-      mat.diffuseColor = BABYLON.Color3.Purple();
-      cell.material = mat;
-      position.y = 0.1;
-      cell.position = position;
-      cell.rotation.x = Math.PI/2;
-    }
-
+    // TODO pathSelector. init
+    this.pathSelector.initFrom(tile, this.PA);
     // wait for pointer event
   }
 
@@ -173,14 +167,11 @@ class Player{
       console.log("pt : "+ pickInfo.pickedPoint);
       if(pickInfo.pickedPoint == null) return;
       let tile = this.scene.getMapHelper().getXZTile(pickInfo.pickedPoint);
-      let position = this.scene.getMapHelper().getXYZ(tile);
-      let cell = BABYLON.Mesh.CreatePlane("select",  this.scene.getMapHelper().getK()*.9, this.scene);
-      let mat = new BABYLON.StandardMaterial("boxMaterial", this.scene);
-      mat.diffuseColor = BABYLON.Color3.Blue();
-      cell.material = mat;
-      position.y = 0.2;
-      cell.position = position;
-      cell.rotation.x = Math.PI/2;
+      // permet de gere la selection-validation d'un tile pour le déplacement
+      if(this.pathSelector.selectAgainst(tile)) {
+        this.state = State.MOVE;
+        // TODO get path
+      }
     }
   }
 

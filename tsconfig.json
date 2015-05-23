@@ -21,6 +21,8 @@
         "src/defines.ts",
         "src/factory.ts",
         "src/maphelper.ts",
+        "src/pathfinding.ts",
+        "src/pathselector.ts",
         "src/player.ts",
         "src/preloader.ts",
         "src/levels/level1.ts",
